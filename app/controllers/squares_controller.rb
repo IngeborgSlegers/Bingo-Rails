@@ -1,35 +1,48 @@
+# frozen_string_literal: true
+
+# this is a comment
 class SquaresController < ApplicationController
   def show
     @squares = Square.where("theme_id = ?", params[:id]).select(:squareValue, :id)
-    
-    @randomDeck = Array.new
-    @rowArray = Array.new
+    return if @squares.empty?
 
-    25.downto(1) do
-      @randomSquare = rand(@squares.length)
-      @correctSquares = @squares.slice(@randomSquare, 1)
-      @randomDeck.push(@correctSquares[0].squareValue)
-    end
+    @random_deck = []
+    @row_array = []
 
-    (1..5).each do
-      @minideck = Array.new
-      (1..5).each do
-        @squareObject = Hash.new
-        @randomIndex = rand(@randomDeck.length)
-        @square = @randomDeck.slice(@randomIndex, 1)[0]
-        @squareObject['value'] = @square
-        @squareObject['checked'] = false
-        @minideck.push(@squareObject)
-      end
-      @rowArray.push(@minideck)
-    end
+    random25
+    build_deck_form
 
-    if @rowArray.length > 0
-      render json: {board: @rowArray}, status: :ok
-    elsif @rowArray.length == 0
-      render status: :no_content
+    if !@row_array.empty?
+      render json: { board: @row_array }, status: :ok
     else
       render json: @square.errors, status: :unprocessable_entity
+    end
+  end
+
+  def random25
+    25.downto(1) do
+      @random_square = rand(@squares.length)
+      @correct_squares = @squares.slice(@random_square, 1)
+      @random_deck.push(@correct_squares[0].squareValue)
+    end
+  end
+
+  def build_deck_form
+    5.times do
+      @minideck = []
+      build_mini_deck
+      @row_array.push(@minideck)
+    end
+  end
+
+  def build_mini_deck
+    5.times do
+      @square_object = {}
+      @random_index = rand(@random_deck.length)
+      @square = @random_deck.slice(@random_index, 1)[0]
+      @square_object["value"] = @square
+      @square_object["checked"] = false
+      @minideck.push(@square_object)
     end
   end
 
@@ -37,7 +50,6 @@ class SquaresController < ApplicationController
     @squares = Square.all
     render json: @squares, status: :ok
   end
-  
 
   def create
     @square = Square.new(square_params)
@@ -49,7 +61,33 @@ class SquaresController < ApplicationController
     end
   end
 
+  def bulk_create
+    square_values = params[:squareValue]
+
+    @squares = Square.create_with(created_at: Time.now, updated_at: Time.now).insert_all(format_bulk_request(square_values))
+
+    if @squares
+      render json: { message: "Success" }, status: :created
+    else
+      render json: @squares.errors, status: :unprocessable_entity
+    end
+  end
+
+  def format_bulk_request(values)
+    format_request = []
+    values.each do |t|
+      format_request.push(
+        {
+          theme_id: request.params[:theme_id],
+          squareValue: t
+        }
+      )
+    end
+    format_request
+  end
+
   private
+
   # Use callbacks to share common setup or constraints between actions.
   def set_theme
     @theme = Theme.find(params[:id])

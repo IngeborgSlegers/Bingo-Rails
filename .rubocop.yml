@@ -1,0 +1,8 @@
+Style/Documentation:
+  Enabled: false
+
+Style/SymbolArray:  
+  EnforcedStyle: brackets
+
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
